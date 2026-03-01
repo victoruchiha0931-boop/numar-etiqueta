@@ -15,6 +15,31 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDIylqf-nmfcJ_0rZ7oMFuRAyALP3ulAY4",
+    authDomain: "etiquetateste.firebaseapp.com",
+    projectId: "etiquetateste",
+    storageBucket: "etiquetateste.firebasestorage.app",
+    messagingSenderId: "685460233892",
+    appId: "1:685460233892:web:ee7ce66fdab491c7a29031"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  // Expõe funções para o código global
+  window._db = db;
+  window._fb = { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy };
+
+  // Listeners em tempo real
+  window._fbReady = true;
+  iniciarListeners();
+</script>
 <style>
 :root {
   --preto:#0a0a0a; --branco:#f5f3ee; --ouro:#c8a96e;
@@ -257,9 +282,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--preto);min-height:100vh;c
 
   <div class="secao-titulo">Produto</div>
   <div class="grid2" style="margin-bottom:12px;">
-    <div class="campo full"><label>Nome do produto</label><input type="text" id="inp-produto" value="PICANHA" autocapitalize="characters"/></div>
-    <div class="campo"><label>Peso / Porção</label><input type="text" id="inp-peso" value="500 g"/></div>
-    <div class="campo"><label>Quantidade</label><input type="number" id="inp-qtd" value="12" min="1" inputmode="numeric"/></div>
+    <div class="campo full"><label>Nome do produto</label><input type="text" id="inp-produto" value="" autocapitalize="characters" placeholder="Ex: PICANHA"/></div>
+    <div class="campo"><label>Peso / Porção</label><input type="text" id="inp-peso" value="" placeholder="Ex: 500 g"/></div>
+    <div class="campo"><label>Quantidade</label><input type="number" id="inp-qtd" value="" min="1" inputmode="numeric" placeholder="Ex: 12"/></div>
     <div class="campo full"><label>Temperatura</label>
       <select id="inp-temp"><option>RESFRIADO</option><option>CONGELADO</option><option>SECO</option><option>AMBIENTE</option></select>
     </div>
@@ -268,7 +293,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--preto);min-height:100vh;c
   <div class="secao-titulo">Datas</div>
   <div class="grid2" style="margin-bottom:12px;">
     <div class="campo"><label>Validade Original</label><input type="date" id="inp-val-original"/></div>
-    <div class="campo"><label>Responsável</label><input type="text" id="inp-resp" value="VICTOR" autocapitalize="characters"/></div>
+    <div class="campo"><label>Responsável</label><input type="text" id="inp-resp" value="" autocapitalize="characters" placeholder="Ex: VICTOR"/></div>
     <div class="campo"><label>Manipulação</label><input type="datetime-local" id="inp-manipulacao"/></div>
     <div class="campo"><label>Validade</label><input type="datetime-local" id="inp-validade"/></div>
   </div>
@@ -301,7 +326,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--preto);min-height:100vh;c
             <div><div class="et-marca">NUMAR</div><div class="et-marca-sub">Controle de Alimentos</div></div>
             <div class="et-chip" id="lbl-temp">RESFRIADO</div>
           </div>
-          <div class="et-produto" id="lbl-produto">PICANHA</div>
+          <div class="et-produto" id="lbl-produto">—</div>
           <div class="et-campos">
             <div class="et-campo"><span class="et-campo-label">Peso/Porção</span><span class="et-campo-valor" id="lbl-peso">500 g</span></div>
             <div class="et-campo"><span class="et-campo-label">Quantidade</span><span class="et-campo-valor" id="lbl-qtd">12 un.</span></div>
@@ -311,7 +336,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--preto);min-height:100vh;c
           </div>
           <div class="et-footer">
             <div><div class="et-resp-label">Resp.</div><div class="et-resp-nome" id="lbl-resp">VICTOR</div></div>
-            <span class="et-lote" id="lbl-lote">PARRILHA</span>
+            <span class="et-lote" id="lbl-lote">—</span>
             <span class="et-hash" id="lbl-hash">#NMR001</span>
           </div>
         </div>
@@ -384,8 +409,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--preto);min-height:100vh;c
 
   <!-- Card de contagem -->
   <div class="contagem-card" id="card-contagem" style="display:none;">
-    <div class="contagem-produto" id="cont-nome">PICANHA</div>
-    <div class="contagem-sub" id="cont-sub">500g · PARRILHA · Vence: —</div>
+    <div class="contagem-produto" id="cont-nome">—</div>
+    <div class="contagem-sub" id="cont-sub">—</div>
 
     <div class="secao-titulo" style="margin-top:8px;">Quantidade atual</div>
     <div class="contador">
@@ -471,13 +496,45 @@ body{font-family:'DM Sans',sans-serif;background:var(--preto);min-height:100vh;c
 
 <script>
 // ══════════════════════════════════════════════
-// STORAGE — persiste dados entre sessões
+// FIREBASE — dados em tempo real compartilhados
 // ══════════════════════════════════════════════
+
+// Cache local (atualizado pelos listeners)
+let _ativas   = [];
+let _historico = [];
+
+function iniciarListeners(){
+  const db = window._db;
+  const { collection, onSnapshot, query, orderBy } = window._fb;
+
+  // Listener proteínas ativas
+  onSnapshot(query(collection(db,'ativas'), orderBy('id','desc')), snap => {
+    _ativas = snap.docs.map(d => ({...d.data(), _docId: d.id}));
+    // Atualiza UI se estiver na aba correta
+    if(document.getElementById('page-ativas').classList.contains('active')) renderAtivas();
+    if(document.getElementById('page-contagem').classList.contains('active')) renderContagem();
+    if(document.getElementById('page-a4').classList.contains('active')) renderA4();
+    atualizarContadorAtivas();
+  });
+
+  // Listener histórico
+  onSnapshot(query(collection(db,'historico'), orderBy('data','desc')), snap => {
+    _historico = snap.docs.map(d => ({...d.data(), _docId: d.id}));
+    if(document.getElementById('page-historico').classList.contains('active')) renderHistorico();
+  });
+}
+
+// Fila A4 ainda no localStorage (é local por dispositivo)
 const DB = {
   get: k => { try { return JSON.parse(localStorage.getItem('numar_'+k)||'null'); } catch(e){ return null; } },
   set: (k,v) => localStorage.setItem('numar_'+k, JSON.stringify(v)),
-  push: (k,v) => { const a = DB.get(k)||[]; a.unshift(v); DB.set(k, a.slice(0,200)); }
 };
+
+function atualizarContadorAtivas(){
+  const ativos = _ativas.filter(p=>p.ativa);
+  const el = document.getElementById('contador-ativas');
+  if(el) el.textContent = ativos.length+' ativa'+(ativos.length!==1?'s':'');
+}
 
 // ══════════════════════════════════════════════
 // NAVEGAÇÃO
@@ -596,10 +653,11 @@ function gerarEtiqueta(){
   ].join('|');
   gerarQR(qrUrl);
 
-  // Salva como ativa
-  const ativas = DB.get('ativas')||[];
-  ativas.unshift(_dados);
-  DB.set('ativas', ativas);
+  // Salva no Firebase
+  if(window._db){
+    const { collection, addDoc } = window._fb;
+    addDoc(collection(window._db,'ativas'), _dados).catch(e => console.error(e));
+  }
 
   // Adiciona à fila A4
   _fila.unshift({..._dados, qrUrl});
@@ -613,7 +671,7 @@ function gerarEtiqueta(){
 // PROTEÍNAS ATIVAS
 // ══════════════════════════════════════════════
 function renderAtivas(){
-  const ativas = (DB.get('ativas')||[]).filter(p=>p.ativa);
+  const ativas = _ativas.filter(p=>p.ativa);
   const lista  = document.getElementById('lista-ativas');
   document.getElementById('contador-ativas').textContent = ativas.length+' ativa'+(ativas.length!==1?'s':'');
 
@@ -654,14 +712,17 @@ function renderAtivas(){
 }
 
 function darBaixaDireto(id){
-  const ativas = DB.get('ativas')||[];
-  const idx    = ativas.findIndex(p=>p.id===id);
-  if(idx<0) return;
-  ativas[idx].ativa = false;
-  DB.set('ativas', ativas);
-  DB.push('historico',{...ativas[idx], tipo:'baixa', data:new Date().toISOString(), qtdFinal:0});
+  const prod = _ativas.find(p=>p.id==id);
+  if(!prod) return;
+  if(window._db){
+    const { doc, updateDoc, collection, addDoc } = window._fb;
+    updateDoc(doc(window._db,'ativas',prod._docId), {ativa: false});
+    addDoc(collection(window._db,'historico'), {
+      ...prod, tipo:'baixa', data:new Date().toISOString(), qtdFinal:0,
+      setor: prod.loteLabel||prod.loteVal
+    });
+  }
   showToast('✓ Produto baixado!','verde');
-  renderAtivas();
 }
 
 function abrirContagem(id){
@@ -678,7 +739,7 @@ function abrirContagem(id){
 let _produtoSelecionado = null;
 
 function renderContagem(){
-  const ativas = (DB.get('ativas')||[]).filter(p=>p.ativa);
+  const ativas = _ativas.filter(p=>p.ativa);
   const sel    = document.getElementById('sel-contagem-produto');
   const prev   = sel.value;
   sel.innerHTML = '<option value="">— Selecione ou escaneie o QR —</option>';
@@ -692,7 +753,7 @@ function renderContagem(){
 
 function selecionarProdutoContagem(){
   const id    = document.getElementById('sel-contagem-produto').value;
-  const ativas= DB.get('ativas')||[];
+  const ativas= _ativas;
   const prod  = ativas.find(p=>p.id==id);
 
   if(!prod){
@@ -720,20 +781,20 @@ function salvarContagem(){
   if(!_produtoSelecionado){showToast('Selecione um produto','erro');return;}
   const qtdNova = parseInt(document.getElementById('cont-qtd').textContent);
   const obs     = document.getElementById('cont-obs').value;
-  const ativas  = DB.get('ativas')||[];
-  const idx     = ativas.findIndex(p=>p.id===_produtoSelecionado.id);
-  if(idx<0) return;
+  const prod = _ativas.find(p=>p.id===_produtoSelecionado.id);
+  if(!prod) return;
+  const qtdAnterior = prod.qtdAtual;
 
-  const qtdAnterior = ativas[idx].qtdAtual;
-  ativas[idx].qtdAtual = qtdNova;
-  DB.set('ativas', ativas);
-
-  DB.push('historico',{
-    id:_produtoSelecionado.id, produto:_produtoSelecionado.produto,
-    setor:_produtoSelecionado.loteLabel||_produtoSelecionado.loteVal,
-    qtdAnterior, qtdNova, diferenca:qtdNova-qtdAnterior,
-    obs, tipo:'contagem', data:new Date().toISOString()
-  });
+  if(window._db){
+    const { doc, updateDoc, collection, addDoc } = window._fb;
+    updateDoc(doc(window._db,'ativas',prod._docId), {qtdAtual: qtdNova});
+    addDoc(collection(window._db,'historico'),{
+      id:prod.id, produto:prod.produto,
+      setor:prod.loteLabel||prod.loteVal,
+      qtdAnterior, qtdNova, diferenca:qtdNova-qtdAnterior,
+      obs, tipo:'contagem', data:new Date().toISOString()
+    });
+  }
 
   showToast('✓ Contagem salva!','ok');
   renderContagem();
@@ -743,15 +804,17 @@ function salvarContagem(){
 function baixarProduto(){
   if(!_produtoSelecionado){showToast('Selecione um produto','erro');return;}
   darBaixaDireto(_produtoSelecionado.id);
+  _produtoSelecionado=null;
   document.getElementById('sel-contagem-produto').value='';
-  selecionarProdutoContagem();
+  document.getElementById('card-contagem').style.display='none';
+  document.getElementById('empty-contagem').style.display='block';
 }
 
 // ══════════════════════════════════════════════
 // HISTÓRICO
 // ══════════════════════════════════════════════
 function renderHistorico(){
-  const hist  = DB.get('historico')||[];
+  const hist  = _historico;
   const lista = document.getElementById('lista-historico');
   if(!hist.length){
     lista.innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-txt">Nenhuma contagem registrada.</div></div>';
@@ -775,9 +838,16 @@ function renderHistorico(){
 }
 
 function limparHistorico(){
-  DB.set('historico',[]);
-  renderHistorico();
-  showToast('Histórico limpo','ok');
+  if(!confirm('Limpar todo o histórico?')) return;
+  if(window._db){
+    const { collection, getDocs, deleteDoc, doc } = window._fb;
+    import("https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js").then(({getDocs})=>{
+      getDocs(collection(window._db,'historico')).then(snap=>{
+        snap.docs.forEach(d=>deleteDoc(doc(window._db,'historico',d.id)));
+        showToast('Histórico limpo','ok');
+      });
+    });
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -1029,9 +1099,7 @@ function processarQRLido(texto){
     const partes = texto.split('|');
     const id   = partes[1];
     const hash = partes[7];
-    const ativas = DB.get('ativas')||[];
-
-    let prod = ativas.find(p=>String(p.id)===String(id) && p.ativa);
+    let prod = _ativas.find(p=>String(p.id)===String(id) && p.ativa);
     if(!prod && hash) prod = ativas.find(p=>p.hash && sanitizar(p.hash)===hash && p.ativa);
 
     if(prod){
@@ -1048,8 +1116,7 @@ function processarQRLido(texto){
   // Fallback: hash direto (#NMR...)
   const hashMatch = texto.match(/#NMR[A-Z0-9]+/);
   if(hashMatch){
-    const ativas = DB.get('ativas')||[];
-    const prod   = ativas.find(p=>p.hash===hashMatch[0] && p.ativa);
+    const prod = _ativas.find(p=>p.hash===hashMatch[0] && p.ativa);
     if(prod){
       document.getElementById('sel-contagem-produto').value = prod.id;
       selecionarProdutoContagem();
@@ -1065,14 +1132,9 @@ function processarQRLido(texto){
 // INIT
 // ══════════════════════════════════════════════
 window.onload = function(){
-  gerarEtiqueta();
   escalar();
   verificarQRParams();
-  // Limpa etiqueta inicial do storage (era só demo)
-  const ativas=DB.get('ativas')||[];
-  if(ativas.length>0 && ativas[0].produto==='PICANHA' && ativas.length===1){
-    // não limpa, pode ser real
-  }
+
 };
 </script>
 
